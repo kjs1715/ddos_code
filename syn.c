@@ -129,7 +129,7 @@ void Init( char *buffer )
    
         //memcpy( (void*)buffer, (void*)&IpHeader, sizeof(IpHeader) );  
         memcpy( (void*)(buffer+sizeof(IpHeader)), (void*)&TcpHeader, sizeof(TcpHeader) );  
-}  
+}
    
 void Flood( )  
 {  
