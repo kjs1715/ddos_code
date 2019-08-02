@@ -114,7 +114,7 @@ unsigned short check_sum(unsigned short* buffer, int size) {
 
 void syn_flooding () {
 
-    int packet_count = 0;
+    int packet_count = 0, packet_count_sum = 0, count = 0;
     int PACKET_SIZE = sizeof(struct iphdr) + sizeof(struct tcphdr);
     int flag = 1, s = -1;
     char buffer[PACKET_SIZE], sendbuffer[PACKET_SIZE];
@@ -201,18 +201,32 @@ void syn_flooding () {
             perror("failed to send...");
             pthread_exit("fail");
         } else {
-            printf("srdIP:%s:%d\t", srcIP, ntohs(tcp_h->source));
-            printf("dstIP:%s:%d\n", dstIP, ntohs(tcp_h->dest));
+            // printf("srdIP:%s:%d\t", srcIP, ntohs(tcp_h->source));
+            // printf("dstIP:%s:%d\n", dstIP, ntohs(tcp_h->dest));
             packet_count++;
+            packet_count_sum++;
         }
-        printf("tcphdr sport -> %d\n", ntohs(tcp_h->source));
+        // printf("tcphdr sport -> %d\n", ntohs(tcp_h->source));
 
         // use to test detection code, 30 packets per sec.
         // printf("Count : %d\n", packet_count);
-        if (packet_count % 30 == 0) {
+        if (packet_count % 10 == 0) {
             packet_count = 0;
+            printf("reset\n");
             sleep(1);
         } 
+
+        if (packet_count_sum % 50 == 0) {
+            packet_count_sum = 0;
+            count++;
+            
+            printf("sleep 10s \n");
+            sleep(3);
+        }
+        if (count == 10) {
+            exit(0);
+        }
+        printf("%d\n", packet_count);
     }
     close(s);
 }

